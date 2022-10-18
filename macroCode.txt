@@ -1,0 +1,65 @@
+Option Base 1
+
+Public Function CheckData()
+ ' Turn off screen updating
+    Application.ScreenUpdating = False
+
+' Get the sheet range
+PickedActualUsedRange
+nrow = Selection.Rows.Count
+ncol = Selection.Columns.Count
+
+' Check for multiple header rows (rows without numeric values)
+
+' Check for special characters in headers
+
+' Check for empty rows, columns
+
+' Check for columns containing identical values except for upper/lower
+
+' Check date formatting
+' Look in the second column to find date values
+' If a date is found start looking down the column to check for consistency
+i = 0
+For c = 1 To ncol
+    If IsDate(Cells(2, c).Value) Then
+        nextCol = False
+        firstFormat = Cells(2, c).NumberFormat
+        For r = 3 To nrow
+            
+            If Cells(r, c).NumberFormat <> firstFormat Then
+                Cells(r, c).Font.Color = -16776961
+                Cells(r, c).Font.TintAndShade = 0
+                Cells(r, c).AddComment
+                Cells(r, c).Comment.Visible = True
+                Cells(r, c).Comment.Text Text:="Biostats:" & Chr(10) & "Inconsistent date format"
+                nextCol = True
+            End If
+         If nextCol = True Then Exit For
+         Next r
+    End If
+Next c
+
+
+For i = 1 To 5
+If IsDate(ActiveCell.Value) Then ActiveCell.Offset(0, 1).Value = ActiveCell.NumberFormat
+
+ActiveCell.Offset(1, 0).Activate
+Next i
+
+OnExit:
+    ' Turn on screen updating & enable events
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+
+End Function
+
+' Took this code from here:
+' https://contexturesblog.com/archives/2012/03/01/select-actual-used-range-in-excel-sheet/
+Sub PickedActualUsedRange()
+  Range("A1").Resize(Cells.Find(What:="*", SearchOrder:=xlRows, _
+      SearchDirection:=xlPrevious, LookIn:=xlValues).Row, _
+      Cells.Find(What:="*", SearchOrder:=xlByColumns, _
+      SearchDirection:=xlPrevious, LookIn:=xlValues).Column).Select
+End Sub
+
