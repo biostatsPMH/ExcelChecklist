@@ -3,49 +3,189 @@ Option Base 1
 Public Function CheckData()
  ' Turn off screen updating
     Application.ScreenUpdating = False
+    
+ ' Store the current workbook /sheet
+ Set thisBook = Application.ActiveWorkbook
+Set thisSheet = Application.ActiveSheet
 
 ' Get the sheet range
 PickedActualUsedRange
 nrow = Selection.Rows.Count
 ncol = Selection.Columns.Count
 
-' Check for multiple header rows (rows without numeric values)
+' Find location of first number/date to check for multiple header rows
+For r = 1 To nrow
+    For c = 1 To ncol
+            If IsEmpty(Cells(r, c).Value) = False And (IsDate(Cells(r, c).Value) = True Or IsNumeric(Cells(r, c).Value) = True) Then GoTo FirstValue
+    Next c
+Next r
+
+FirstValue:
+firstDataRow = r
+If firstDataRow > 2 Then
+    With Cells(1, 1)
+        .AddComment
+        .Comment.Visible = True
+        .Comment.Text Text:="Biostats:" & Chr(10) & "Only one header row is permitted, with no special characters"
+    End With
+End If
 
 ' Check for special characters in headers
-
-' Check for empty rows, columns
-
-' Check for columns containing identical values except for upper/lower
-
-' Check date formatting
-' Look in the second column to find date values
-' If a date is found start looking down the column to check for consistency
-i = 0
-For c = 1 To ncol
-    If IsDate(Cells(2, c).Value) Then
-        nextCol = False
-        firstFormat = Cells(2, c).NumberFormat
-        For r = 3 To nrow
-            
-            If Cells(r, c).NumberFormat <> firstFormat Then
-                Cells(r, c).Font.Color = -16776961
-                Cells(r, c).Font.TintAndShade = 0
-                Cells(r, c).AddComment
-                Cells(r, c).Comment.Visible = True
-                Cells(r, c).Comment.Text Text:="Biostats:" & Chr(10) & "Inconsistent date format"
-                nextCol = True
+specialComment = False
+For r = 1 To (firstDataRow - 1)
+    For c = 1 To ncol
+        If Cells(r, c).Value Like "*[!A-Za-z0-9 _]*" Then
+            Cells(r, c).Font.Color = -16776961
+            If specialComment = False Then
+                With Cells(r, c)
+                .ClearComments
+                    .AddComment
+                    .Comment.Visible = True
+                    .Comment.Text Text:="Biostats:" & Chr(10) & "Please remove all special characters"
+                End With
+            specialComment = True
             End If
-         If nextCol = True Then Exit For
-         Next r
+        End If
+        If Cells(r, c).Value Like "*[=]*" Then
+            Cells(r, c).Font.Color = -16776961
+                With Cells(r, c)
+                    .ClearComments
+                    .AddComment
+                    .Comment.Visible = True
+                    .Comment.Text Text:="Biostats:" & Chr(10) & "All codes must be supplied in a separate data dictionary"
+                End With
+
+        End If
+        
+    Next c
+Next r
+        
+' Check for empty rows, columns
+For r = 1 To nrow
+    Set fullRow = Cells(r, 1).EntireRow
+    If Application.WorksheetFunction.CountA(fullRow) = 0 Then
+        With fullRow.Interior
+            .Pattern = xlSolid
+            .PatternColorIndex = xlAutomatic
+            .Color = 65535
+            .TintAndShade = 0
+            .PatternTintAndShade = 0
+        End With
+        Cells(r, 1).AddComment
+        Cells(r, 1).Comment.Visible = True
+        Cells(r, 1).Comment.Text Text:="Biostats:" & Chr(10) & "Pleae remove empy rows"
+    End If
+Next r
+
+For c = 1 To ncol
+    Set fullCol = Cells(1, c).EntireColumn
+    If Application.WorksheetFunction.CountA(fullCol) = 0 Then
+        With fullCol.Interior
+            .Pattern = xlSolid
+            .PatternColorIndex = xlAutomatic
+            .Color = 65535
+            .TintAndShade = 0
+            .PatternTintAndShade = 0
+        End With
+        Cells(1, c).AddComment
+        Cells(1, c).Comment.Visible = True
+        Cells(1, c).Comment.Text Text:="Biostats:" & Chr(10) & "Pleae remove empy columns"
     End If
 Next c
 
 
-For i = 1 To 5
-If IsDate(ActiveCell.Value) Then ActiveCell.Offset(0, 1).Value = ActiveCell.NumberFormat
+For c = 1 To ncol
+    r = firstDataRow
+    Do Until IsEmpty(Cells(r, c).Value) = False Or r = nrow
+    r = r + 1
+    Loop
+    
+    If IsDate(Cells(r, c).Value) Then
+' Check date formatting
+' Look in the second column to find date values
+' If a date is found start looking down the column to check for consistency
+        dateComment = False
+        firstFormat = Cells(r, c).NumberFormat
+        ' need to strip special characters excep '-' out of this and compare to new with special stripped
+        firstFormat = Replace(firstFormat, "[$-409]", "")
+        firstFormat = Replace(firstFormat, ";@", "")
+        For rNext = (r + 1) To nrow
+            If IsEmpty(Cells(rNext, c).Value) = False Then
+                nextCellFormat = Replace(Cells(rNext, c).NumberFormat, "[$-409]", "")
+                nextCellFormat = Replace(nextCellFormat, ";@", "")
+                If nextCellFormat <> firstFormat Then
+                    Cells(rNext, c).Font.Color = -16776961
+                    Cells(rNext, c).Font.TintAndShade = 0
+                    If dateComment = False Then
+                        Cells(rNext, c).AddComment
+                        Cells(rNext, c).Comment.Visible = True
+                        Cells(rNext, c).Comment.Text Text:="Biostats:" & Chr(10) & "Inconsistent date format"
+                    End If
+                    dateComment = True
+                End If
+            End If
+         Next rNext
+    End If
+    
+     ' Check Numeric Columns for text
+    If IsNumeric(Cells(r, c).Value) Then
+        stringComment = False
+        For rNext = (r + 1) To nrow
+            If IsEmpty(Cells(r, c).Value) = False And IsNumeric(Cells(r, c).Value) = False Then
+                    Cells(rNext, c).Font.Color = -16776961
+                    Cells(rNext, c).Font.TintAndShade = 0
+                    If stringComment = False Then
+                        Cells(rNext, c).AddComment
+                        Cells(rNext, c).Comment.Visible = True
+                        Cells(rNext, c).Comment.Text Text:="Biostats:" & Chr(10) & "Text in numeric column"
+                    End If
+                    stringComment = True
+            End If
+        Next rNext
+    End If
+    
+    ' Retrieve unique values in the column
+    columnValues = Range(Cells(firstDataRow, c), Cells(nrow, c))
+    With CreateObject("scripting.dictionary")
+        For Each x In columnValues
+            y = .Item(x)    ' populate the dictionary
+        Next x
+        uniqueColVals = .keys
+    End With
+    ' Now repeate with lower case values
+    With CreateObject("scripting.dictionary")
+        For Each x In columnValues
+            y = .Item(LCase(x))    ' populate the dictionary
+        Next x
+        uniqueLowerCase = .keys
+    End With
+    If UBound(uniqueColVals) > UBound(uniqueLowerCase) Then
+        msgText = Join(uniqueColVals, vbLf)
+    
+        Cells(firstDataRow, c).AddComment
+        Cells(firstDataRow, c).Comment.Visible = True
+        Cells(firstDataRow, c).Comment.Text Text:="Biostats:" & Chr(10) & "Case must be consistent, check values" & Chr(10) & msgText
+    
+    End If
 
-ActiveCell.Offset(1, 0).Activate
-Next i
+    
+    
+    
+    
+Next c
+
+' If any comments have been added then add a copy of the Excel checklist to the active workbook
+If specialComment = True Or dateComment = True Then
+    Windows("testData_macro.xlsm").Activate
+    Sheets("CheckList").Select
+    Sheets("CheckList").Copy Before:=thisBook.Sheets(1)
+   thisSheet.Activate
+End If
+
+' Autosize Comments
+For Each newComment In Application.ActiveSheet.Comments
+    newComment.Shape.TextFrame.AutoSize = True
+Next
 
 OnExit:
     ' Turn on screen updating & enable events
@@ -63,3 +203,42 @@ Sub PickedActualUsedRange()
       SearchDirection:=xlPrevious, LookIn:=xlValues).Column).Select
 End Sub
 
+
+Sub removeColumnFormatting()
+   ActiveCell.EntireColumn.Select
+    Selection.ClearComments
+    With Selection.Font
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+    End With
+    With Selection.Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+
+End Sub
+ Sub RemoveFormatting()
+ 
+  ' Turn off screen updating
+    Application.ScreenUpdating = False
+
+    Cells.Select
+
+' Add code to remove formatting from cells so that test can be re-run
+    Selection.ClearComments
+    With Selection.Font
+        .ColorIndex = xlAutomatic
+        .TintAndShade = 0
+    End With
+    With Selection.Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+
+OnExit:
+    ' Turn on screen updating & enable events
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+ End Sub
