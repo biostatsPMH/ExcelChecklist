@@ -131,7 +131,7 @@ For c = 1 To ncol
     If IsNumeric(Cells(r, c).Value) Then
         stringComment = False
         For rNext = (r + 1) To nrow
-            If IsEmpty(Cells(r, c).Value) = False And IsNumeric(Cells(r, c).Value) = False Then
+            If IsEmpty(Cells(rNext, c).Value) = False And IsNumeric(Cells(rNext, c).Value) = False Then
                     Cells(rNext, c).Font.Color = -16776961
                     Cells(rNext, c).Font.TintAndShade = 0
                     If stringComment = False Then
@@ -159,18 +159,14 @@ For c = 1 To ncol
         Next x
         uniqueLowerCase = .keys
     End With
+    ' add warning if these don't match
     If UBound(uniqueColVals) > UBound(uniqueLowerCase) Then
         msgText = Join(uniqueColVals, vbLf)
     
         Cells(firstDataRow, c).AddComment
         Cells(firstDataRow, c).Comment.Visible = True
         Cells(firstDataRow, c).Comment.Text Text:="Biostats:" & Chr(10) & "Case must be consistent, check values" & Chr(10) & msgText
-    
     End If
-
-    
-    
-    
     
 Next c
 
